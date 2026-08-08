@@ -37,12 +37,21 @@
                 <div class="code-snippet">
                     <pre><code>import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-class TransformerCompanion(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # Building the brain from scratch
-        self.reasoning = nn.Linear(512, 1024)</code></pre>
+class CausalSelfAttention(nn.Module):
+    def forward(self, x):
+        B, T, C = x.shape
+        q, k, v = self.w_q(x), self.w_k(x), self.w_v(x)
+        
+        q = q.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        k = k.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        v = v.view(B, T, self.num_heads, self.head_dim).transpose(1, 2)
+        q, k = apply_rotary_position_embeddings(q, k, self.freqs[:T])
+        
+        scores = (q @ k.transpose(-2, -1)) / (self.head_dim ** 0.5)
+        scores = scores.masked_fill(self.mask[:, :, :T, :T] == 0, float('-inf'))
+        return self.w_o(F.softmax(scores, dim=-1) @ v)</code></pre>
                 </div>
             </div>
         </section>
